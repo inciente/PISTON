@@ -1,3 +1,8 @@
+import sys; import pandas as pd; import xarray as xr; import matplotlib.pyplot as plt; 
+import numpy as np; 
+sys.path.insert(0,'/media/mydrive/PhysOc/modview/modview')
+import loader
+
 # Pull data from database 
 sio1_limits = {'t0':'2018 Sep 15','t1':'2019 Oct 31'};
 sio1_data_dir = '/media/mydrive/PISTON/Moorings/SIO1/'; 
@@ -22,9 +27,9 @@ def make_tempgrid(obj,namestr):
     temp_file = temp_file.read_struct(namestr,['depth','time','temp']); 
     time = pd.to_datetime(temp_file['time']); 
     depth = np.squeeze(temp_file['depth']); 
-    obj.vars['Temperature'] = xr.DataArray( data=temp_file['temp'], 
+    obj.vars['Temperature'] = {'T': xr.DataArray( data=temp_file['temp'], 
                      dims=['depth','time'], 
-                     coords={'depth':depth,'time':time});
+                     coords={'depth':depth,'time':time})};
     return obj
 
 
@@ -80,3 +85,9 @@ def make_mooring(strname='SIO1'):
     moor = make_tempgrid(moor,strname); 
     moor = make_chipod(moor,strname);
     return moor
+
+
+
+
+
+
