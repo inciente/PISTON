@@ -154,7 +154,7 @@ def cham_fig_format(axes):
 def period_spectra(dataset, limits, ctd_dict, scaling=1, dz=10):
     # Take a slice of adcp data to compute spectra
     block = dataset['u'].sel(time=slice(limits['t0'],limits['t1']));
-    block = block + 1j*dataset['v'].sel(time=slice(limits['t0'],limits['t1']))
+    block = block + 1j*dataset['v'].sel(time=slice(limits['t0'],limits['t1']));
     block = block * scaling; # wkb scaling
     block = block.sel(depth_cell=slice(limits['z0'],limits['z1']));
     # Prepare N2 
@@ -170,7 +170,7 @@ def period_spectra(dataset, limits, ctd_dict, scaling=1, dz=10):
     
     mod_power = timetools.spectrum_1D(mod_block, dt=dz, nseg=1, axis=1)
     wvnums = np.fft.fftfreq(n=mod_block.shape[1],d=dz)
-    # Remove spectra with too many nans
+    # Remove spectra whose data had more than 30% nans.
     mod_power[nan_count/mod_block.shape[0]>0.3, :] = np.nan; 
     mod_power = np.nanmean( mod_power, axis=0)
     # Separate frequencies
