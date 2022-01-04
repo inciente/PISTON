@@ -1,6 +1,6 @@
 import numpy as np; import xarray as xr
-import pandas as pd;
-import sys; import scipy.io as sio
+import pandas as pd; import scipy.io as sio
+import sys, warnings
 import importlib; import matplotlib.pyplot as plt
 import cartopy as cart
 import matplotlib.dates as mdates
@@ -11,11 +11,11 @@ from datetime import datetime
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 sys.path.insert(0,'/mnt/sda1/PhysOc/modview/modview')
 import phystools, timetools
-import warnings
 
 mybox = [[133,137],[10,19]]; # for windwork visualization
 
 def plot_range(df, limits, goodz, axis, reps=500, cut=True):
+    ''' Take in data frame, compute mean and 95% CL, and return both. '''
     if cut:
         df_new = df.loc[limits['t0']:limits['t1']]
         df_new = df_new.loc[:,goodz]; 
@@ -32,7 +32,10 @@ def plot_range(df, limits, goodz, axis, reps=500, cut=True):
     
 
 def bootstrap(data_vec,reps, ivals=[2.5,97.5], func=np.mean):
-    # Resample data_vec reps # of times and apply func to estimate intervals
+    ''' Resample a single vector data_vec reps number of times. 
+    Then, apply func  to estimate confidence intervals of that 
+    specific function, which can be std, mean, var, or other.
+    '''
     dat_replicates = np.empty(reps); 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore",category=RuntimeWarning);
@@ -45,8 +48,10 @@ def bootstrap(data_vec,reps, ivals=[2.5,97.5], func=np.mean):
     return lo_bound, hi_bound 
 
 def bootstrap_matrix(data_mat,reps,ivals=[2.5,97.5],axis=1, func=np.mean):
-    # Cycle through columns/rows in data_mat and calculate bootstrapping error bars
-    # for func in each one of them
+    ''' Take in a matrix data_mat and cycle through its columns/rows 
+    to calculate bootstrapping error bars via boot strapping on each column. 
+    This way, a different error bar is estimated for each depth level in vertical profiles.
+    '''
     N_est = data_mat.shape[axis];
     bounds = np.empty((N_est,2));
     
@@ -60,11 +65,13 @@ def bootstrap_matrix(data_mat,reps,ivals=[2.5,97.5],axis=1, func=np.mean):
     
     
 def inset_ax(axis, locat):
+    ''' Create box within a place a separate visual object there '''
     ans1 = inset_axes(axis, width="3%",  height="90%",  loc=locat,
                      bbox_to_anchor=(0.07,0.,1,1), bbox_transform=axis.transAxes, borderpad=0)
     return ans1
 
 def SeaMap(fig_dict, in_gs, axind):
+    ''' Make a map of coasts for the extent specified below ''' 
     figname = fig_dict['fig']; 
     gridplace = fig_dict['gs'][in_gs];
     axlist = fig_dict['axes']
