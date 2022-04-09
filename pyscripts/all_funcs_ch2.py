@@ -10,7 +10,7 @@ from matplotlib.patches import Rectangle
 from datetime import datetime
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 sys.path.insert(0,'/mnt/sda1/PhysOc/modview/modview')
-import phystools, timetools
+import phystools, timetools, viztools
 
 mybox = [[133,137],[10,19]]; # for windwork visualization
 
@@ -79,10 +79,10 @@ def SeaMap(fig_dict, in_gs, axind):
     axlist[axind] = figname.add_subplot( gridplace, 
                 projection=cart.crs.Orthographic(
                 central_longitude=135, central_latitude=18))
-    axlist[axind].set_extent([118,142,5,28]);
+    axlist[axind].set_extent([120,140,8,26]);
     axlist[axind].set_aspect('equal')
     axlist[axind].add_feature(cart.feature.LAND,zorder=100,
-                    edgecolor='k', facecolor=[0.8,0.8,0.8]);
+                    edgecolor='k', facecolor='bisque');
     return axlist
     
 def dashedbox(fig_dict, axind):
@@ -91,7 +91,7 @@ def dashedbox(fig_dict, axind):
         axlist[kk].plot([mybox[0][0],mybox[0][1],mybox[0][1],
                 mybox[0][0], mybox[0][0]],[mybox[1][0],mybox[1][0],
                 mybox[1][1],mybox[1][1],mybox[1][0]],
-                linestyle='dashed',linewidth=2,color='blue',
+                linestyle='dashed',linewidth=1,color='blue',
                       transform=cart.crs.PlateCarree())
 
 def box_avg(xr_obj, variable):
@@ -128,7 +128,7 @@ def cham_fig_format(axes):
     axes[0].loglog([1e-5,1e-4],[1e2,2e2],color='black',linestyle='dashed',linewidth=2 , alpha=0.7,
                label='$c_g$ up')
     axes[0].loglog([1e-5,1e-4],[1e2,3e3],color='black',linestyle='solid',linewidth=3,label='$c_g$ down')
-    axes[0].legend(); axes[1].legend()
+    axes[0].legend(); axes[6].legend()
     axes[0].grid(True, which='major',ls="-", color='0.65')
     axes[0].grid(True, which='minor',ls="-", color='0.8', alpha=0.5)
     axes[0].set_xlim((1e-3, 6e-2)); axes[0].set_ylim([0.85e-4,2.35e-3]);
@@ -145,12 +145,13 @@ def cham_fig_format(axes):
     axes[5].set_xlim([-12.5,80])
     hf_ticks = np.array([0,25,50,75]);
     axes[5].set_xticks(hf_ticks )
-    
+    axes[6].set_ylim([50,0]); axes[6].grid(which='both'); 
+    axes[6].set_xlim([-25,250]); 
     xlabs = [r'$k_z/2\pi$ [cpm]',r'$J_q$ [W m$^{-2}$]',
            r'$ \frac{\rho_0}{2} \left< \| \vec{U} \|^2\right>$ [J m$^{-3}$]',
            r'$ \left< \epsilon \right> $ [W kg$^{-1}$]',r'$\left< \kappa \right>$ [m$^2$ s$^{-1}$]',
-           r'$\left< J_q \right>$ [W m$^{-2}$]']
-    ylabs = [r'$\Phi_{sh}$ [m s$^{-2}$]',r'pdf [$10^{-5}$ W$^{-1}$ m$^2$]','Depth [m]','','','']
+           r'$\left< J_q \right>$ [W m$^{-2}$]',r'$J_q$ [W m$^{-2}$]'];
+    ylabs = [r'$\Phi_{sh}$ [m s$^{-2}$]',r'pdf [$10^{-5}$ W$^{-1}$ m$^2$]','Depth [m]','','','','Depth [m]'];
 
     for kk in range(len(axes)):
         axn = axes[kk]
@@ -188,12 +189,15 @@ def period_spectra(dataset, limits, ctd_dict, scaling=1, dz=10):
     return mod_power, wvnums
 
 def dateticks(fig_dict, axind, dts, combined=False):
-    axlist = fig_dict['axes']
+    if isinstance(fig_dict,dict):
+        axlist = fig_dict['axes']
+    elif isinstance(fig_dict, viztools.panel_plot):
+        axlist = fig_dict.axes;
     # Major ticks.
     fmt_big = mdates.DayLocator(interval=dts[1])
     axlist[axind].xaxis.set_major_locator(fmt_big)
     # Minor ticks.
-    if combined:
+    if combined: # small dt given in hours
         fmt_small = mdates.HourLocator(byhour=dts[0]);
     else:
         fmt_small = mdates.DayLocator(interval=dts[0]);
@@ -213,23 +217,26 @@ def colgroup(df,ncols):
     dfc = pd.DataFrame( data=dfc, index=df.index)
     return dfc
     
-def mapticks(fig_dict, axind, latlabels=True):
+def mapticks(fig, axind, latlabels=True, lonlabels=True):
     # specify format of map ticks and their labels
-    axlist = fig_dict['axes'];
+    axlist = fig.axes;
     for kk in axind: 
-        gl = axlist[kk].gridlines(crs=cart.crs.PlateCarree(), draw_labels=True,
-                  linewidth=1, color='k', alpha=0.7)
+        gl = axlist[kk].gridlines(\
+                draw_labels=False, linewidth=1, color='k', alpha=0.7,
+                crs=fig.graphic['projections'][kk]())
         gl.top_labels = False
         gl.right_labels = False
         gl.left_labels = latlabels
+        gl.bottom_labels = lonlabels
+
         #gl.xlines = False
-        gl.xlocator = mpl.ticker.FixedLocator([120, 130, 140])
+        gl.xlocator = mpl.ticker.FixedLocator([123, 130, 137])
         gl.xformatter = LATITUDE_FORMATTER
         gl.ylocator = mpl.ticker.FixedLocator([12, 18, 24])
         gl.yformatter = LATITUDE_FORMATTER
     
-def mkxlim(fig_dict, axind,limits):
-    axlist = fig_dict['axes'];
+def mkxlim(fig, axind,limits):
+    axlist = fig.axes;
     startTime = datetime.strptime(limits['t0'],'%Y-%m-%d %H');
     endTime = datetime.strptime(limits['t1'],'%Y-%m-%d %H');
     startTime = mdates.date2num(startTime);
@@ -237,7 +244,7 @@ def mkxlim(fig_dict, axind,limits):
     axlist[axind].set_xlim((startTime, endTime));
     return
     
-def shade_period(fig_dict, axind, limits, color='yellow'):
+def shade_period(fig_dict, axind, limits, color='yellow', text=None):
     axlist = fig_dict['axes']; 
     print(axlist)
     # convert to matplotlib date representation
@@ -247,9 +254,9 @@ def shade_period(fig_dict, axind, limits, color='yellow'):
     end = mdates.date2num(endTime)
     width = end - start;
     # Plot rectangle
-    rect = Rectangle((start, 0), width, 1, color=color)
+    rect = Rectangle((start, 0), width, 1, color=color, alpha=0.5)
     axlist[axind].add_patch(rect)   
-    
+#    axlist[axind].text(start+width/2, 0.4, text) 
     return
 
 def colbartop(bounds,im,fig_dict, barlegend,tickz):
@@ -281,12 +288,11 @@ def format_direct_obs(fig_dict, axind, period, dt=[1,5], ylim=(350,0),yticks=Fal
     
 # EXPECT TO RESTRUCTURE THIS CONSIDERABLY 
 def workseries(fig_dict, axind, work2plot, flux2plot1, flux2plot2):
-    datcolor = [0.8, 0.26, 0.8];
     axlist = fig_dict['axes'];
     # plot turb fluxes
     newax = axlist[axind].twinx();
-    newax.plot( flux2plot1.iloc[:,100:150].mean(axis=1),color=datcolor)
-    newax.plot( flux2plot2.iloc[:,100:150].mean(axis=1),color=datcolor); 
+    newax.plot( flux2plot1.iloc[:,100:150].mean(axis=1),color='crimson')
+    newax.plot( flux2plot2.iloc[:,100:150].mean(axis=1),color='crimson'); 
     # plot windwork
     axlist[axind].plot( work2plot.time, work2plot, color='k',linewidth=2 , label='$\Pi$ dashed box')
     axlist[axind].set_ylabel('Windwork $\Pi$ [W m$^{-2}$]')
@@ -297,9 +303,9 @@ def workseries(fig_dict, axind, work2plot, flux2plot1, flux2plot2):
     newax.grid(axis ='x', linewidth='1', color='black');
     newax.set_ylabel('$J_q$ [W m$^{-2}$]')
     mkxlim(fig_dict,axind,{'t0':'2018-08-10 00','t1':'2018-10-13 23'})
-    newax.tick_params(axis='y', colors=datcolor)
-    newax.yaxis.label.set_color(datcolor)
-    newax.spines['right'].set_color(datcolor)
+    newax.tick_params(axis='y', colors='crimson')
+    newax.yaxis.label.set_color('crimson')
+    newax.spines['right'].set_color('crimson')
     return
 
     #axlist[axind].legend()
@@ -313,11 +319,10 @@ def leg2ylabel(legax):
 
     legax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
     
-def addlet(fig_dict, axind, x,y,letter):
-    axlist = fig_dict['axes']; 
+def addlet(axlist, axind, x,y,letter, size=22):
     for kk in range(len(axind)):
         txt = axlist[axind[kk]].text(x[kk], y[kk], letter[kk],
-                transform=axlist[axind[kk]].transAxes, fontweight='bold',size=22)
+                transform=axlist[axind[kk]].transAxes, fontweight='bold',size=size)
         txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
         plt.draw()
 
@@ -379,11 +384,11 @@ def make_cmaps():
     ceps = mpl.colors.ListedColormap(ceps)
     ceps.set_under([0.5, 0.5, 0.5,1]); ceps.set_over([0.25,0,0.51,1]);
 
-    cwork = mpl.cm.get_cmap('YlGnBu'); # cumulative windwork 
-    cwork = cwork(np.linspace(0,1,8));
+    cwork = mpl.cm.get_cmap('Greys'); # cumulative windwork 
+    cwork = cwork(np.linspace(0.25,0.9,8));
     cwork = np.vstack( ([1, 1, 1, 1], cwork))
     cwork = mpl.colors.ListedColormap(cwork); 
-    cwork.set_under([0.5, 0.5, 0.5, 1])
+    cwork.set_over([0, 0, 0, 1])
     return cvel, ceps, cwork
     
 def make_cmaps2():

@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
+import scipy.interpolate as scinterp
 
 ''' Functions to import and plot data from Kerry Emanuel's TC database '''
 
@@ -137,3 +138,32 @@ class storm_info:
         else:
             pass
         return wspd
+
+    def interp_track(self,dim,vals):
+        ''' Interpolate the TC track onto the dimension dim 'lon','lat','time' using
+        at the given values vals'''
+        track = self.coords(); 
+        base_time = datetime.datetime(1900,1,1,0); 
+        numeric_time = track.index - base_time;
+        numeric_time = numeric_time.total_seconds()/3600
+        if dim == 'lon':
+            interp_lat = scinterp.interp1d(track['lon'],track['lat'], 
+                    kind='linear');
+            interp_time = scinterp.interp1d(track['lon'],numeric_time,
+                    kind='linear');
+            interpolator = [interp_lat, interp_time]; 
+        elif dim=='lat':
+            interp_lon = scinterp.interp1d(track['lat'], track['lon'],
+                    kind='linear'); 
+            interp_time = scinterp.interp1d(track['lat'], numeric_time,
+                    kind='linear'); 
+            interpolator = [interp_lon, interp_time]; 
+        # Get at query value. Times will be returned in hours since 1900, 01, 01.
+        qvals = [interpolator[jj](vals) for jj in range(len(interpolator))];
+        if dim in ['lat','lon']:
+            # translate time to datetime
+            qvals[1] = base_time + datetime.timedelta(hours=int(qvals[1]))
+
+        return qvals
+
+
