@@ -27,7 +27,56 @@ def latlon_deriv(xr_obj, func=None):
             110e3/np.cos(xr_obj.latitude.mean()/180*np.pi)
     var_y = xr_obj.differentiate(coord='latitude')/110e3
     return var_x, var_y
+ 
+def scale_by_f( xr_obj, power=1 ):
+    const = 4*np.pi/24/3600;
+    f = const * np.sin( xr_obj.latitude / 180 * np.pi ); 
+    scaled = xr_obj / f**power; 
+    return scaled
 
+class flow_field:
+    def __init__(self, u, v, w=None):
+        # takes in xr.DataArrays
+        self.u = get_prep( u + 1j*v ); # standardize coords
+        self.w = w; 
+    def vort_div(self, scale=True):
+        ux, uy = latlon_deriv( self.u ); 
+        vort = np.imag( ux ) - np.real( uy ); 
+        div = np.real( ux ) + np.imag( uy ); 
+        if scale:
+            vort = scale_by_f( vort, power=1 ); 
+            div = scale_by_f ( div, power=1 ); 
+        return vort, div
+    
+    def nonlinear_uv( self, scale=False ):
+        # Compute nonlinear terms in the equations of motion
+        ux, uy = latlon_deriv( self.u ); 
+        accel_u = np.real(self.u) * np.real(ux) \
+                + np.imag(self.u) * np.real(uy) ; # u*u_x + v*u_y
+        accel_v = np.real(self.u) * np.imag(ux) \
+                + np.imag(self.u) * np.imag(uy); # u*v_x + v*v_y
+        if scale: 
+            accel_u = scale_by_f( accel_u, power=1 );
+            accel_v = scale_by_f( accel_v, power=1 ); 
+        return accel_u, accel_v
+    
+    def nonlinear_vort_div( self, scale=False ):
+        # Nonlinear contributions to dzeta/dt, dGamma/dt
+        # following Nevir & Sommer (2009) in JAS
+        vort, div = self.vort_div( scale=False ); 
+        vort_x, vort_y = latlon_deriv( vort ); 
+        vort_transport = np.real( self.u ) * vort_x \
+                + 1j * np.imag( self.u ) * vort_y;
+        trans_x, trans_y = latlon_deriv( vort_transport ); 
+        # divergence of vorticity transport
+        accel_vort = np.real( trans_x ) + np.imag( trans_y );
+        # curl of vorticity transport
+        accel_div = np.imag( trans_x ) - np.real( trans_y ); 
+        if scale: 
+            accel_vort = scale_by_f( accel_vort, power=2 ); 
+            accel_div = scale_by_f( accel_div, power=2 ); 
+        return accel_vort, accel_div
+    
 def get_vort_div(flow):
     f = 4*np.pi*np.sin(flow.latitude/180*np.pi)/24/3600;
     u_x, u_y = latlon_deriv(np.real(flow)) # spatial derivatives

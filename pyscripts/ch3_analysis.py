@@ -48,10 +48,16 @@ def mooring_paths(num):
 
 # Climatology datasets
 clim_paths = dict(); 
-clim_paths['wind_clim'] = data_dirs['wind'] + 'Monthly_global_winds.nc';
-clim_paths['argo'] = data_dirs['argo'] + 'RG_ArgoClim_33pfit_2019_annual.nc';
-clim_paths['precip'] = data_dirs['precip'] + 'precip_monthly_means.nc';
-clim_paths['era5'] = data_dirs['era5'] + 'indopacific_monthly_20yrs.nc';
+clim_paths['wind_clim'] = data_dirs['wind'] \
+        + 'Monthly_global_winds.nc';
+clim_paths['argo'] = data_dirs['argo'] \
+        + 'RG_ArgoClim_33pfit_2019_annual.nc';
+clim_paths['precip'] = data_dirs['precip'] \
+        + 'precip_monthly_means.nc';
+clim_paths['era5_monthly'] = data_dirs['era5'] \
+        + 'indopacific_monthly_20yrs.nc';
+clim_paths['era5_pentad'] = data_dirs['era5'] \
+        + 'indopacific_pentad_20yrs.nc';
 
 # Datasets corresponding to our period of observations
 obs_paths = dict(); 
@@ -72,14 +78,20 @@ def get_argo():
     ARGO = mapper.standardize_coords(ARGO,'ARGO_TEMPERATURE_ANNUAL_ANOMALY'); 
     return ARGO
 
-def get_era5(use='clim'):
-    if use=='clim':
-        ERA5 = xr.open_dataset(clim_paths['era5']); # already has standard coords
-    elif use=='obs':
-        ERA5 = xr.open_dataset(obs_paths['era5']); 
-    ERA5 = ERA5.reindex( {'latitude':list(reversed(ERA5.latitude))})
-    ERA5 = ERA5.sel(longitude=slice(bg_lims['lon0'],bg_lims['lon1']));
-    ERA5 = ERA5.sel(latitude=slice(bg_lims['lat0'],bg_lims['lat1'])); 
+def get_era5(use='monthly', cut=True):
+    if use == 'obs':
+        ERA5 = xr.open_dataset( obs_paths['era5'] );
+    else:
+        key = 'era5_' + use;
+        ERA5 = xr.open_dataset(clim_paths[key]); 
+    # Reorder and slice data
+    ERA5 = ERA5.reindex( {\
+            'latitude':list(reversed(ERA5.latitude))})
+    if cut:
+        ERA5 = ERA5.sel(longitude= \
+                slice(bg_lims['lon0'],bg_lims['lon1']));
+        ERA5 = ERA5.sel(latitude= \
+                slice(bg_lims['lat0'],bg_lims['lat1'])); 
     ERA5['u_comp'] = ERA5['u10'] + 1j*ERA5['v10']; 
     #ERA5['Q_rad'] = ERA5['msnswrf'] + ERA5['msnlwrf']; 
     #ERA5['Q_turb'] = ERA5['mslhf'] + ERA5['msshf']; 
