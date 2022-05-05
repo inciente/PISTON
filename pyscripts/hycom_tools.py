@@ -1,10 +1,16 @@
-import numpy as np; import sys; 
+import numpy as np; import sys, socket; 
 import xarray as xr; import datetime;
 import matplotlib.pyplot as plt;
 import pandas as pd; 
-sys.path.append('/mnt/sda1/PhysOc/modview/modview/')
+
+if socket.gethostname() == 'kuxan-suum':
+    sys.path.append('/media/mydrive/PhysOc/modview/modview/');
+    sys.path.append('/media/mydrive/PhysOc/DataFinder/');
+elif socket.gethostname() == 'Chijpiri':
+    sys.path.append('/mnt/sda1/PhysOc/modview/modview/')
+    sys.path.append('/mnt/sda1/PhysOc/DataFinder/')
+# import the home made software
 import loader; import viztools; import timetools; import mapper
-sys.path.append('/mnt/sda1/PhysOc/DataFinder/')
 import filtering
 
 def get_prep( xr_obj ):
@@ -109,7 +115,7 @@ def sel_dat( xr_obj, x=None, y=None, t=None, p=None ):
     if y is not None:
         xr_obj = xr_obj.sel( latitude=y, method='nearest' ); 
     if t is not None:
-        xr_obj = xr_obj.sel( time=t, method='nearest');
+        xr_obj = xr_obj.sel( time=t);
     if p is not None:
         xr_obj = xr_obj.sel( pressure=p, method='nearest'); 
     return xr_obj            
